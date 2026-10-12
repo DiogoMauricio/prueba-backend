@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:   # permite correrlo a mano desde la pestaña Actions
+
+permissions:
+  contents: read
+
+jobs:
+  validar-flujos:
+    name: Validar JSON de flujos n8n
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Revisar que cada flujo sea JSON válido
+        run: |
+          shopt -s globstar nullglob
+          archivos=(n8n/workflows/**/*.json)
+          if [ ${#archivos[@]} -eq 0 ]; then echo "No hay flujos todavía"; exit 0; fi
+          for f in "${archivos[@]}"; do
+            python3 -m json.tool "$f" > /dev/null && echo "OK  $f" || { echo "ERROR $f"; exit 1; }
+          done
+
+  prueba-bot:
+    name: Prueba del flujo del bot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Ejecutar prueba contra n8n en la nube
+        env:
+          BOT_WEBHOOK_URL: ${{ secrets.BOT_WEBHOOK_URL }}
+        run: node --test tests/

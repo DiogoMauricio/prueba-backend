@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba del flujo del bot</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5b6474;
+    --border: #d9dde4; --ok: #1a7f37; --fail: #c62828; --accent: #2457d6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); padding: 24px 16px; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+          padding: 18px; margin-bottom: 16px; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin: 12px 0 4px; }
+  label:first-child { margin-top: 0; }
+  input, textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--border);
+                    border-radius: 6px; font: inherit; font-size: .95rem; }
+  textarea { font-family: ui-monospace, Consolas, monospace; min-height: 110px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row > div { flex: 1 1 200px; }
+  button { margin-top: 16px; background: var(--accent); color: #fff; border: 0;
+           padding: 10px 18px; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  ul.checks { list-style: none; padding: 0; margin: 0; }
+  ul.checks li { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; gap: 10px; }
+  ul.checks li:last-child { border-bottom: 0; }
+  .ico { font-weight: 700; width: 1.2em; }
+  .ok .ico { color: var(--ok); } .fail .ico { color: var(--fail); }
+  .detail { color: var(--muted); font-size: .85rem; }
+  #resumen { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; }
+  #resumen.ok { color: var(--ok); } #resumen.fail { color: var(--fail); }
+  pre { background: #10141c; color: #e6e9ef; padding: 12px; border-radius: 6px;
+        overflow-x: auto; font-size: .85rem; white-space: pre-wrap; word-break: break-word; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Prueba del flujo del bot (n8n en la nube)</h1>
+  <p class="sub">Envía una pregunta al webhook de producción y verifica que la respuesta llegue bien.</p>
+
+  <div class="card">
+    <label for="url">URL del webhook (producción)</label>
+    <input id="url" type="url" placeholder="https://TU-SERVICIO.onrender.com/webhook/TU-RUTA">
+
+    <label for="body">Cuerpo de la petición (JSON)</label>
+    <textarea id="body">{
+  "chatInput": "¿Cuál fue el presupuesto PIM del sector Educación en 2021?",
+  "sessionId": "prueba-unitaria"
+}</textarea>
+
+    <div class="row">
+      <div>
+        <label for="campo">Campo esperado en la respuesta</label>
+        <input id="campo" value="output">
+      </div>
+      <div>
+        <label for="timeout">Tiempo máximo (segundos)</label>
+        <input id="timeout" type="number" min="5" value="90">
+      </div>
+    </div>
+
+    <button id="btn">Ejecutar prueba</button>
+  </div>
+
+  <div class="card hidden" id="resultado">
+    <div id="resumen"></div>
+    <ul class="checks" id="checks"></ul>
+  </div>
+
+  <div class="card hidden" id="crudoCard">
+    <label>Respuesta cruda</label>
+    <pre id="crudo"></pre>
+  </div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // Recordar la última URL usada (solo en este navegador)
+  try { const u = localStorage.getItem("bot_webhook_url"); if (u) $("url").value = u; } catch (e) {}
+
+  function pintar(checks) {
+    const ul = $("checks");
+    ul.innerHTML = "";
+    checks.forEach(c => {
+      const li = document.createElement("li");
+      li.className = c.ok ? "ok" : "fail";
+      li.innerHTML = `<span class="ico">${c.ok ? "✔" : "✘"}</span>
+        <div><div>${c.nombre}</div><div class="detail"></div></div>`;
+      li.querySelector(".detail").textContent = c.detalle || "";
+      ul.appendChild(li);
+    });
+    const todos = checks.every(c => c.ok);
+    const r = $("resumen");
+    r.className = todos ? "ok" : "fail";
+    const pasaron = checks.filter(c => c.ok).length;
+    r.textContent = todos
+      ? `PRUEBA EXITOSA — ${pasaron}/${checks.length} verificaciones`
+      : `PRUEBA FALLIDA — ${pasaron}/${checks.length} verificaciones`;
+    $("resultado").classList.remove("hidden");
+  }
+
+  function buscarProveedor(obj) {
+    if (!obj || typeof obj !== "object") return null;
+    for (const k of ["proveedor_respuesta", "proveedor", "provider", "modelo", "model"]) {
+      if (obj[k]) return String(obj[k]);
+    }
+    return null;
+  }
+
+  $("btn").addEventListener("click", async () => {
+    const url = $("url").value.trim();
+    const campo = $("campo").value.trim() || "output";
+    const limite = Number($("timeout").value) || 90;
+    const checks = [];
+
+    let payload;
+    try { payload = JSON.parse($("body").value); }
+    catch (e) { pintar([{ ok: false, nombre: "El cuerpo es JSON válido", detalle: e.message }]); return; }
+    if (!/^https:\/\//.test(url)) {
+      pintar([{ ok: false, nombre: "URL válida (https)", detalle: "Pega la URL de producción del webhook" }]); return;
+    }
+    try { localStorage.setItem("bot_webhook_url", url); } catch (e) {}
+
+    $("btn").disabled = true; $("btn").textContent = "Esperando respuesta…";
+    $("crudoCard").classList.add("hidden");
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), limite * 1000);
+    const t0 = performance.now();
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
+      });
+      const ms = Math.round(performance.now() - t0);
+      const texto = await res.text();
+      $("crudo").textContent = texto || "(vacío)";
+      $("crudoCard").classList.remove("hidden");
+
+      checks.push({ ok: true, nombre: "El servidor respondió", detalle: `en ${(ms / 1000).toFixed(1)} s` });
+      checks.push({ ok: res.ok, nombre: "Código HTTP 2xx", detalle: `HTTP ${res.status}` });
+
+      let json = null;
+      try { json = JSON.parse(texto); } catch (e) {}
+      checks.push({ ok: json !== null, nombre: "La respuesta es JSON",
+                    detalle: json !== null ? "" : "No se pudo interpretar como JSON" });
+
+      const cuerpo = Array.isArray(json) ? json[0] : json;
+      const valor = cuerpo ? cuerpo[campo] : undefined;
+      const tieneTexto = typeof valor === "string" ? valor.trim().length > 0 : valor != null;
+      checks.push({ ok: tieneTexto, nombre: `Contiene el campo "${campo}" con contenido`,
+                    detalle: tieneTexto ? String(valor).slice(0, 140) : "Campo ausente o vacío" });
+
+      checks.push({ ok: ms <= limite * 1000, nombre: `Respondió en menos de ${limite} s`,
+                    detalle: `${(ms / 1000).toFixed(1)} s` });
+
+      const prov = buscarProveedor(cuerpo);
+      if (prov) checks.push({ ok: true, nombre: "Proveedor identificado", detalle: prov });
+    } catch (e) {
+      const esTimeout = e.name === "AbortError";
+      checks.push({
+        ok: false,
+        nombre: esTimeout ? `Respondió en menos de ${limite} s` : "El servidor respondió",
+        detalle: esTimeout
+          ? "Se agotó el tiempo. Si Render estaba dormido, vuelve a intentar."
+          : "Error de red o CORS. Revisa que el flujo esté activo y que el Webhook permita este origen (Allowed Origins)."
+      });
+    } finally {
+      clearTimeout(timer);
+      $("btn").disabled = false; $("btn").textContent = "Ejecutar prueba";
+      pintar(checks);
+    }
+  });
+</script>
+</body>
+</html>

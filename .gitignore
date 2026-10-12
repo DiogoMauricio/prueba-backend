@@ -1,0 +1,22 @@
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# n8n local
+.n8n/
+n8n_data/
+
+# Node
+node_modules/
+
+# Respaldos de base de datos
+*.tar.gz
+*.sql.gz
+*.dump
+
+# Sistema
+.DS_Store
+Thumbs.db
