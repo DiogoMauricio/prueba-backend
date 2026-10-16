@@ -1,0 +1,99 @@
+{
+  "name": "FinEdu - Consulta Evolucion SQL",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "entidad"
+            },
+            {
+              "name": "anioInicio",
+              "type": "number"
+            },
+            {
+              "name": "anioFin",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "782d59de-7c0c-4a7e-b2e2-d2624316e2b7",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    e.ejecutora_nombre AS entidad,\n    e.departamento_ejecutora_nombre AS departamento,\n    e.provincia_ejecutora_nombre AS provincia,\n    e.distrito_ejecutora_nombre AS distrito,\n    hp.anio,\n\n    ROUND(SUM(COALESCE(hp.pia, 0)), 2) AS pia,\n    ROUND(SUM(COALESCE(hp.pim, 0)), 2) AS pim,\n    ROUND(SUM(COALESCE(hp.certificado, 0)), 2) AS certificado,\n    ROUND(SUM(COALESCE(hp.comprometido_anual, 0)), 2) AS comprometido_anual,\n    ROUND(SUM(COALESCE(hp.comprometido, 0)), 2) AS comprometido,\n    ROUND(SUM(COALESCE(hp.devengado, 0)), 2) AS devengado,\n    ROUND(SUM(COALESCE(hp.girado, 0)), 2) AS girado\n\nFROM hecho_presupuesto hp\n\nINNER JOIN dim_entidad e\n    ON e.id = hp.entidad_id\n\nWHERE\n    UPPER(TRIM(e.ejecutora_nombre))\n        = UPPER(TRIM($1))\n\n    AND hp.anio BETWEEN $2 AND $3\n\nGROUP BY\n    e.ejecutora_nombre,\n    e.departamento_ejecutora_nombre,\n    e.provincia_ejecutora_nombre,\n    e.distrito_ejecutora_nombre,\n    hp.anio\n\nORDER BY hp.anio;",
+        "options": {
+          "queryReplacement": "={{ $json.entidad }},={{ $json.anioInicio }},={{ $json.anioFin }}"
+        }
+      },
+      "id": "3a0efdec-dfc2-42d5-9627-2996c54ae9d4",
+      "name": "Consulta Evolucion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CZumYYXbYQ6C0NM2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "id": "9c398ac5-c63c-4188-a56c-9d757a115ab5",
+      "name": "Formatear Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const filas = $input.all()\n  .map(i => i.json)\n  .filter(row => Object.keys(row).length > 0);\n\nreturn [{ json: { totalFilas: filas.length, filas } }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Consulta Evolucion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta Evolucion": {
+      "main": [
+        [
+          {
+            "node": "Formatear Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {},
+  "tags": []
+}

@@ -14,14 +14,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Revisar que cada flujo sea JSON válido
+
+      - name: Cada flujo es JSON válido de n8n
         run: |
-          shopt -s globstar nullglob
-          archivos=(n8n/workflows/**/*.json)
-          if [ ${#archivos[@]} -eq 0 ]; then echo "No hay flujos todavía"; exit 0; fi
+          shopt -s nullglob
+          archivos=(backend/n8n/workflows/*.json)
+          [ ${#archivos[@]} -gt 0 ] || { echo "No hay flujos"; exit 0; }
           for f in "${archivos[@]}"; do
-            python3 -m json.tool "$f" > /dev/null && echo "OK  $f" || { echo "ERROR $f"; exit 1; }
+            jq -e '.nodes and .connections' "$f" > /dev/null \
+              && echo "OK    $f" || { echo "ERROR $f"; exit 1; }
           done
+
+      - name: Los flujos no traen claves escritas
+        run: |
+          if grep -rEn '(sk-[A-Za-z0-9_-]{20,}|gsk_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|postgres(ql)?://[^:"]+:[^@"]+@)' backend frontend; then
+            echo "Se encontró algo que parece una clave o contraseña. Quítalo y usa credenciales de n8n."
+            exit 1
+          fi
+          echo "Sin claves expuestas"
 
   prueba-bot:
     name: Prueba del flujo del bot
@@ -31,7 +41,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Ejecutar prueba contra n8n en la nube
+      - name: Consulta real al n8n en la nube
         env:
           BOT_WEBHOOK_URL: ${{ secrets.BOT_WEBHOOK_URL }}
-        run: node --test tests/
+        run: node --test tests/bot.test.mjs
