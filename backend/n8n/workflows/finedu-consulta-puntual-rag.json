@@ -1,0 +1,95 @@
+{
+  "name": "FinEdu - Consulta Puntual RAG",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "entidad"
+            },
+            {
+              "name": "anio",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "47f29796-01fc-4d23-b7ea-2aa58a0d07ae",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    metadata->>'entidad' AS entidad,\n    metadata->>'departamento' AS departamento,\n    metadata->>'provincia' AS provincia,\n    metadata->>'distrito' AS distrito,\n    (metadata->>'entidad_id')::int AS entidad_id,\n    (metadata->>'anio')::int AS anio,\n    (metadata->>'pia')::numeric AS pia,\n    (metadata->>'pim')::numeric AS pim,\n    (metadata->>'certificado')::numeric AS certificado,\n    (metadata->>'comprometido_anual')::numeric AS comprometido_anual,\n    (metadata->>'comprometido')::numeric AS comprometido,\n    (metadata->>'devengado')::numeric AS devengado,\n    (metadata->>'girado')::numeric AS girado,\n    metadata->>'meta_nombre' AS meta,\n    metadata->>'programa_ppto_nombre' AS programa,\n    metadata->>'especifica_nombre' AS especifica\nFROM rag_hecho_presupuesto\nWHERE metadata->>'entidad' ILIKE '%' || $1 || '%'\n  AND ($2::int IS NULL OR (metadata->>'anio')::int = $2)\nORDER BY (metadata->>'anio')::int, especifica;",
+        "options": {
+          "queryReplacement": "={{ $json.entidad }},={{ $json.anio === '' || $json.anio == null ? null : $json.anio }}"
+        }
+      },
+      "id": "74ff4a1c-2431-4dea-88a6-28041ae14e18",
+      "name": "Consulta Puntual RAG",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        224,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "CZumYYXbYQ6C0NM2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "id": "effdf256-6351-4952-a061-23e8477b400d",
+      "name": "Formatear Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const filas = $input.all()\n  .map(i => i.json)\n  .filter(row => Object.keys(row).length > 0);\n\nreturn [{ json: { totalFilas: filas.length, filas } }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Consulta Puntual RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta Puntual RAG": {
+      "main": [
+        [
+          {
+            "node": "Formatear Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {},
+  "tags": []
+}

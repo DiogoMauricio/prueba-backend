@@ -1,0 +1,1197 @@
+{
+  "name": "FinEdu-Caso5-Cedula4 v4-3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-agent-orchestrator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d6343506-3407-4409-be3d-4d3c5bc7f9ed",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        352
+      ],
+      "webhookId": "777254bd-2b43-474f-a2a9-e64738d9927f"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body?.chatInput ?? $json.chatInput }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Eres el agente orquestador de FinEdu-Bot.\n\nTu función es responder preguntas sobre información presupuestaria\ny documentación relacionada con el sector público peruano.\n\nDispones de tres herramientas:\n\nknowledge_base:\nBase de conocimiento RAG que utiliza PostgreSQL con PGVector.\nÚsala solo para consultas descriptivas o cuando la pregunta no\nmencione una entidad y un año concretos.\n\nconsulta_puntual:\nConsulta SQL exacta (sin similitud semántica) para el PIA, PIM,\ncertificado, comprometido, devengado o girado de UNA entidad en\nUN año específico, o todos los años de esa entidad si no se\nindica año. ÚSALA SIEMPRE que la pregunta mencione una entidad\ny, opcionalmente, un año concreto, en lugar de knowledge_base.\n\nconsulta_evolucion:\nConsulta SQL exacta que agrega PIA, PIM, certificado,\ncomprometido, devengado y girado por año para UNA entidad en\nun rango de años. Úsala para evolución, histórico, tendencia o\ncomparación entre años de la misma entidad.\n\nREGLAS:\n\n1. Para preguntas relacionadas con presupuesto, PIA, PIM, devengado,\n   ejecución presupuestaria, entidades públicas, departamentos,\n   provincias, municipalidades y datos contenidos en la base MEF,\n   utiliza knowledge_base.\n\n2. Antes de responder una consulta de datos, intenta obtener contexto\n   utilizando knowledge_base.\n\n3. No inventes cifras, nombres de entidades ni información que no\n   aparezca en el contexto recuperado.\n\n4. Si la herramienta no encuentra información suficiente, indícalo\n   claramente.\n\n5. Conserva el contexto de la conversación utilizando la sesión\n   proporcionada por el Webhook.\n\n6. Devuelve SIEMPRE la respuesta siguiendo el esquema estructurado\n   configurado para el agente.\n\n7. La propiedad risk debe contener exactamente uno de estos valores:\n\nSAFE\nHIGH_RISK\n\n8. Para consultas normales de información pública utiliza:\n\nrisk = SAFE\n\n9. No agregues texto fuera de la respuesta estructurada.\n\n10. Las consultas de evolución, histórico, tendencia o comparación\npor años deben utilizar datos estructurados de PostgreSQL.\n\n11. Nunca mezcles entidades diferentes en una misma evolución,\nsalvo que el usuario solicite explícitamente una comparación.\n\n12. Cuando exista una entidad concreta, identifica primero su\nentidad_id y utiliza ese identificador como filtro principal.\n\n13. Todos los registros de una evolución deben pertenecer a la misma\nentidad_id.\n\n14. Para una evolución agrupa los datos por entidad_id y anio.\n\n15. Calcula mediante suma únicamente:\nPIA, PIM, certificado, comprometido_anual, comprometido,\ndevengado y girado.\n\n16. No inventes años que no tengan registros.\n\n17. Si un año no tiene registros, indícalo como \"sin registro disponible\".\n\n18. No utilices similitud semántica de PGVector como criterio final\npara determinar qué registros pertenecen a una evolución histórica.\n\n19. PGVector se utiliza principalmente para recuperación contextual\ny consultas descriptivas.\n\n20. Las cifras devueltas desde PostgreSQL deben conservarse sin\nalteraciones.\n\n21. Si existen varias entidades que coinciden parcialmente con el\nnombre indicado, no elijas arbitrariamente una. Indica la ambigüedad.\n\n22. Para consultas de evolución presupuestaria utiliza SIEMPRE la\nherramienta consulta_evolucion.\n\n23. No intentes calcular una evolución histórica a partir de los\nfragmentos recuperados por knowledge_base.\n\n24. Las herramientas SQL devuelven los registros agregados por\nentidad y año. Utiliza esos valores directamente, sin alterarlos.\n\n25. Si la consulta contiene una entidad pero no puede determinarse\nuna única entidad_id (aparecen varias entidad_id distintas en el\nresultado de consulta_puntual o consulta_evolucion), solicita\nprecisión o informa la ambigüedad.\n\n26. Para preguntas sobre PIA, PIM, certificado, comprometido o\ndevengado/girado de una entidad en un año concreto (o en todos\nsus años), utiliza SIEMPRE consulta_puntual antes que\nknowledge_base. Solo usa knowledge_base si consulta_puntual no\ndevuelve registros y necesitas contexto descriptivo adicional.\n\n27. Si consulta_puntual devuelve cero filas, indica explícitamente\nque no hay registros para esa entidad y año en la base estructurada,\nen vez de asumir automáticamente que no existe información.\n\n28. Para intent=information_request, llama primero a consulta_puntual con la entidad (sin año) para traer todos los registros disponibles. Construye la respuesta únicamente a partir de esos registros (departamento, provincia, distrito, programas, montos). Si no hay registros, dilo explícitamente. Nunca completes con conocimiento general del modelo (alcaldes, contacto, historia, ubicación) que no venga de las herramientas.\n\n29. OBLIGATORIO: la respuesta final estructurada debe incluir SIEMPRE\nla propiedad \"output\" conteniendo el texto de la respuesta dirigida al\nusuario. No la omitas bajo ninguna circunstancia, ni siquiera en\nrespuestas cortas, en mensajes de error, en aclaraciones, en casos de\nambigüedad o cuando no haya registros disponibles. Si no tienes datos\nque entregar, igualmente coloca en \"output\" el texto explicando esa\nsituación. Una respuesta sin la propiedad \"output\" es invalida y sera\nrechazada."
+        }
+      },
+      "id": "ec91e6c8-4c1b-48c3-a39b-efb33f55536a",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        592,
+        352
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-luna",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-luna"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 1500
+        }
+      },
+      "id": "b8230647-459a-4d82-91c2-9680c07d8351",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        592
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "DUtlmFgpnt1GF7B6",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body?.sessionId ?? $('Webhook').item.json.sessionId ?? 'sesion-unica' }}",
+        "contextWindowLength": 10
+      },
+      "id": "f1c1840b-78a9-4289-8589-290e1d3e811d",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        368,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "description": "RAG semántico sobre datos presupuestarios del MEF (rag_hecho_presupuesto). Úsala solo si consulta_puntual/consulta_evolucion no devuelven registros, o para contexto puramente descriptivo sin entidad y año concretos. Nunca la uses como fuente de cifras para una evolución.",
+        "topK": 3
+      },
+      "id": "62a105d2-a4f0-4d8c-8a89-96d8f4df9fc9",
+      "name": "knowledge_base",
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1.1,
+      "position": [
+        496,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-luna",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-luna"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 1500
+        }
+      },
+      "id": "7968df22-ac28-401a-a550-8d1ba7c0af0f",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        784,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "DUtlmFgpnt1GF7B6",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableName": "rag_hecho_presupuesto",
+        "options": {
+          "columnNames": {
+            "values": {}
+          }
+        }
+      },
+      "id": "733e5cbc-fd59-45c4-b099-e9951e4ebcc1",
+      "name": "Postgres PGVector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        384,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CZumYYXbYQ6C0NM2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "2cded4f9-6ebb-4cd0-8b98-62dced660243",
+      "name": "Embeddings Google Gemini",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        464,
+        1008
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "JhlZVYrWf7stdtUE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "SQL sobre rag_hecho_presupuesto (match PARCIAL por ILIKE en el nombre de entidad): PIA/PIM/certificado/comprometido/devengado/girado de UNA entidad en UN año, o todos los años si se omite. Úsala siempre que la pregunta mencione una entidad, con o sin año. Puedes pasar el nombre tal como lo escribió el usuario (ej. 'Rio Tambo'), no hace falta el nombre completo. Devuelve {totalFilas, filas}; si totalFilas=0, no hay datos.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "FinEdu - Consulta Puntual RAG",
+          "cachedResultUrl": "/workflow/c3BiHilUYpprGdT8",
+          "mode": "list",
+          "value": "c3BiHilUYpprGdT8"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "entidad": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('entidad', 'Nombre completo o parcial de la entidad ejecutora mencionada en la pregunta. Se usa con ILIKE.') }}",
+            "anio": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('anio', 'Año específico solicitado; deja vacío si la pregunta no menciona un año (entero, ejemplo: 2017).', 'number') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "entidad",
+              "displayName": "entidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "anio",
+              "displayName": "anio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      },
+      "id": "f2ba057a-6a4b-4df5-9504-ffdc3536c85d",
+      "name": "consulta_puntual",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "description": "SQL sobre hecho_presupuesto + dim_entidad (match EXACTO, sin distinguir mayúsculas/espacios) agregada por año para UNA entidad en un rango de años. Úsala para evolución, histórico, tendencia o comparación entre años. Requiere el nombre COMPLETO y exacto de la entidad tal como aparece en dim_entidad (ej. 'MUNICIPALIDAD DISTRITAL DE RIO TAMBO', 'MUNICIPALIDAD DISTRITAL DE CHAMBARA', 'REGION AMAZONAS-SALUD'); si no lo tienes, primero usa consulta_puntual para confirmarlo. Devuelve {totalFilas, filas}; si totalFilas=0, no hay datos en ese rango.",
+        "workflowId": {
+          "__rl": true,
+          "cachedResultName": "FinEdu - Consulta Evolucion SQL",
+          "cachedResultUrl": "/workflow/6NAlFaKSB0FE8JNu",
+          "mode": "list",
+          "value": "6NAlFaKSB0FE8JNu"
+        },
+        "workflowInputs": {
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false,
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "entidad",
+              "id": "entidad",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "anioInicio",
+              "id": "anioInicio",
+              "required": false,
+              "type": "number"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "anioFin",
+              "id": "anioFin",
+              "required": false,
+              "type": "number"
+            }
+          ],
+          "value": {
+            "anioFin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('anioFin', 'Año final del rango de la evolución (entero, ejemplo: 2023).', 'number') }}",
+            "anioInicio": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('anioInicio', `Año inicial del rango de la evolución (entero, ejemplo: 2017).`, 'number') }}",
+            "entidad": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('entidad', 'Nombre exacto o parcial de la entidad ejecutora a consultar (ejemplo: \"MUNICIPALIDAD DISTRITAL DE RIO TAMBO\"). Se usa con ILIKE.') }}"
+          }
+        }
+      },
+      "id": "5461a5ee-3735-40e8-a7a5-601642946b6f",
+      "name": "consulta_evolucion",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"success\": { \"type\": \"boolean\" },\n    \"intent\": { \"type\": \"string\" },\n    \"message\": { \"type\": \"string\" },\n    \"output\": { \"type\": \"string\" },\n    \"risk\": { \"type\": \"string\", \"enum\": [\"SAFE\", \"HIGH_RISK\"] },\n    \"evolucion\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"entidad\": { \"type\": \"string\" },\n          \"departamento\": { \"type\": \"string\" },\n          \"provincia\": { \"type\": \"string\" },\n          \"distrito\": { \"type\": \"string\" },\n          \"anio\": { \"type\": \"integer\" },\n          \"pia\": { \"type\": \"number\" },\n          \"pim\": { \"type\": \"number\" },\n          \"certificado\": { \"type\": \"number\" },\n          \"comprometido_anual\": { \"type\": \"number\" },\n          \"comprometido\": { \"type\": \"number\" },\n          \"devengado\": { \"type\": \"number\" },\n          \"girado\": { \"type\": \"number\" }\n        },\n        \"required\": [\"entidad\", \"departamento\", \"provincia\", \"distrito\", \"anio\", \"pia\", \"pim\", \"certificado\", \"comprometido_anual\", \"comprometido\", \"devengado\", \"girado\"]\n      }\n    },\n    \"presupuestos\": { \"type\": \"array\" },\n    \"proyectos\": { \"type\": \"array\" },\n    \"contrataciones\": { \"type\": \"array\" },\n    \"totalRegistros\": { \"type\": \"integer\" },\n    \"paginaActual\": { \"type\": \"integer\" },\n    \"tamanioPagina\": { \"type\": \"integer\" },\n    \"totalPaginas\": { \"type\": \"integer\" }\n  },\n  \"required\": [\"success\", \"intent\", \"message\", \"output\", \"risk\", \"evolucion\", \"presupuestos\", \"proyectos\", \"contrataciones\", \"totalRegistros\", \"paginaActual\", \"tamanioPagina\", \"totalPaginas\"]\n}",
+        "autoFix": true
+      },
+      "id": "5f144357-696b-46c1-a08b-2d18ccf411e7",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-luna",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-luna"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 1500
+        }
+      },
+      "id": "c2abcf9b-e6bf-4e76-99dd-eae84f603384",
+      "name": "OpenAI Chat Model (Parser)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        800
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "DUtlmFgpnt1GF7B6",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-recuperable",
+              "leftValue": "={{ (JSON.stringify($json.error ?? \"\") + \" \" + JSON.stringify($json)).toLowerCase() }}",
+              "rightValue": "timeout|429|too many requests|rate.?limit|unavailable|overloaded|quota|service unavailable|econnreset|econnrefused|etimedout|502|503|504|\\b500\\b|internal server error|server_error|server had an error|timed out|bad gateway",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bc2be39d-def6-40a6-8d6b-33f476f47410",
+      "name": "Es error recuperable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-prov-principal",
+              "name": "proveedor_respuesta",
+              "type": "string",
+              "value": "OpenAI (principal)"
+            },
+            {
+              "id": "set-tokens-principal",
+              "name": "tokens_usados",
+              "type": "number",
+              "value": "={{ Math.ceil(((($('Webhook').item.json.body?.chatInput ?? $('Webhook').item.json.chatInput ?? '') + JSON.stringify($json.output ?? '')).length) / 4) }}"
+            },
+            {
+              "id": "set-tfin-principal",
+              "name": "t_fin_agente",
+              "type": "number",
+              "value": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "3d404025-8492-4481-af14-8ff5a237b39e",
+      "name": "Etiqueta Proveedor Principal",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2112,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook').item.json.body?.chatInput ?? $('Webhook').item.json.chatInput }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Eres el agente orquestador de FinEdu-Bot.\n\nTu función es responder preguntas sobre información presupuestaria\ny documentación relacionada con el sector público peruano.\n\nDispones de tres herramientas:\n\nknowledge_base:\nBase de conocimiento RAG que utiliza PostgreSQL con PGVector.\nÚsala solo para consultas descriptivas o cuando la pregunta no\nmencione una entidad y un año concretos.\n\nconsulta_puntual:\nConsulta SQL exacta (sin similitud semántica) para el PIA, PIM,\ncertificado, comprometido, devengado o girado de UNA entidad en\nUN año específico, o todos los años de esa entidad si no se\nindica año. ÚSALA SIEMPRE que la pregunta mencione una entidad\ny, opcionalmente, un año concreto, en lugar de knowledge_base.\n\nconsulta_evolucion:\nConsulta SQL exacta que agrega PIA, PIM, certificado,\ncomprometido, devengado y girado por año para UNA entidad en\nun rango de años. Úsala para evolución, histórico, tendencia o\ncomparación entre años de la misma entidad.\n\nREGLAS:\n\n1. Para preguntas relacionadas con presupuesto, PIA, PIM, devengado,\n   ejecución presupuestaria, entidades públicas, departamentos,\n   provincias, municipalidades y datos contenidos en la base MEF,\n   utiliza knowledge_base.\n\n2. Antes de responder una consulta de datos, intenta obtener contexto\n   utilizando knowledge_base.\n\n3. No inventes cifras, nombres de entidades ni información que no\n   aparezca en el contexto recuperado.\n\n4. Si la herramienta no encuentra información suficiente, indícalo\n   claramente.\n\n5. Conserva el contexto de la conversación utilizando la sesión\n   proporcionada por el Webhook.\n\n6. Devuelve SIEMPRE la respuesta siguiendo el esquema estructurado\n   configurado para el agente.\n\n7. La propiedad risk debe contener exactamente uno de estos valores:\n\nSAFE\nHIGH_RISK\n\n8. Para consultas normales de información pública utiliza:\n\nrisk = SAFE\n\n9. No agregues texto fuera de la respuesta estructurada.\n\n10. Las consultas de evolución, histórico, tendencia o comparación\npor años deben utilizar datos estructurados de PostgreSQL.\n\n11. Nunca mezcles entidades diferentes en una misma evolución,\nsalvo que el usuario solicite explícitamente una comparación.\n\n12. Cuando exista una entidad concreta, identifica primero su\nentidad_id y utiliza ese identificador como filtro principal.\n\n13. Todos los registros de una evolución deben pertenecer a la misma\nentidad_id.\n\n14. Para una evolución agrupa los datos por entidad_id y anio.\n\n15. Calcula mediante suma únicamente:\nPIA, PIM, certificado, comprometido_anual, comprometido,\ndevengado y girado.\n\n16. No inventes años que no tengan registros.\n\n17. Si un año no tiene registros, indícalo como \"sin registro disponible\".\n\n18. No utilices similitud semántica de PGVector como criterio final\npara determinar qué registros pertenecen a una evolución histórica.\n\n19. PGVector se utiliza principalmente para recuperación contextual\ny consultas descriptivas.\n\n20. Las cifras devueltas desde PostgreSQL deben conservarse sin\nalteraciones.\n\n21. Si existen varias entidades que coinciden parcialmente con el\nnombre indicado, no elijas arbitrariamente una. Indica la ambigüedad.\n\n22. Para consultas de evolución presupuestaria utiliza SIEMPRE la\nherramienta consulta_evolucion.\n\n23. No intentes calcular una evolución histórica a partir de los\nfragmentos recuperados por knowledge_base.\n\n24. Las herramientas SQL devuelven los registros agregados por\nentidad y año. Utiliza esos valores directamente, sin alterarlos.\n\n25. Si la consulta contiene una entidad pero no puede determinarse\nuna única entidad_id (aparecen varias entidad_id distintas en el\nresultado de consulta_puntual o consulta_evolucion), solicita\nprecisión o informa la ambigüedad.\n\n26. Para preguntas sobre PIA, PIM, certificado, comprometido o\ndevengado/girado de una entidad en un año concreto (o en todos\nsus años), utiliza SIEMPRE consulta_puntual antes que\nknowledge_base. Solo usa knowledge_base si consulta_puntual no\ndevuelve registros y necesitas contexto descriptivo adicional.\n\n27. Si consulta_puntual devuelve cero filas, indica explícitamente\nque no hay registros para esa entidad y año en la base estructurada,\nen vez de asumir automáticamente que no existe información.\n\n28. Para intent=information_request, llama primero a consulta_puntual con la entidad (sin año) para traer todos los registros disponibles. Construye la respuesta únicamente a partir de esos registros (departamento, provincia, distrito, programas, montos). Si no hay registros, dilo explícitamente. Nunca completes con conocimiento general del modelo (alcaldes, contacto, historia, ubicación) que no venga de las herramientas.\n\n29. OBLIGATORIO: la respuesta final estructurada debe incluir SIEMPRE\nla propiedad \"output\" conteniendo el texto de la respuesta dirigida al\nusuario. No la omitas bajo ninguna circunstancia, ni siquiera en\nrespuestas cortas, en mensajes de error, en aclaraciones, en casos de\nambigüedad o cuando no haya registros disponibles. Si no tienes datos\nque entregar, igualmente coloca en \"output\" el texto explicando esa\nsituación. Una respuesta sin la propiedad \"output\" es invalida y sera\nrechazada."
+        }
+      },
+      "id": "8414a87c-d365-4b49-96e3-74d21bbb89e5",
+      "name": "AI Agent1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1648,
+        352
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 1500
+        }
+      },
+      "id": "1e4cc36b-00a2-4c0c-98c4-669ee38a4501",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1632,
+        592
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "JhlZVYrWf7stdtUE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"success\": { \"type\": \"boolean\" },\n    \"intent\": { \"type\": \"string\" },\n    \"message\": { \"type\": \"string\" },\n    \"output\": { \"type\": \"string\" },\n    \"risk\": { \"type\": \"string\", \"enum\": [\"SAFE\", \"HIGH_RISK\"] },\n    \"evolucion\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"entidad\": { \"type\": \"string\" },\n          \"departamento\": { \"type\": \"string\" },\n          \"provincia\": { \"type\": \"string\" },\n          \"distrito\": { \"type\": \"string\" },\n          \"anio\": { \"type\": \"integer\" },\n          \"pia\": { \"type\": \"number\" },\n          \"pim\": { \"type\": \"number\" },\n          \"certificado\": { \"type\": \"number\" },\n          \"comprometido_anual\": { \"type\": \"number\" },\n          \"comprometido\": { \"type\": \"number\" },\n          \"devengado\": { \"type\": \"number\" },\n          \"girado\": { \"type\": \"number\" }\n        },\n        \"required\": [\"entidad\", \"departamento\", \"provincia\", \"distrito\", \"anio\", \"pia\", \"pim\", \"certificado\", \"comprometido_anual\", \"comprometido\", \"devengado\", \"girado\"]\n      }\n    },\n    \"presupuestos\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n    \"proyectos\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n    \"contrataciones\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },\n    \"totalRegistros\": { \"type\": \"integer\" },\n    \"paginaActual\": { \"type\": \"integer\" },\n    \"tamanioPagina\": { \"type\": \"integer\" },\n    \"totalPaginas\": { \"type\": \"integer\" }\n  },\n  \"required\": [\"success\", \"intent\", \"message\", \"output\", \"risk\", \"evolucion\", \"presupuestos\", \"proyectos\", \"contrataciones\", \"totalRegistros\", \"paginaActual\", \"tamanioPagina\", \"totalPaginas\"]\n}",
+        "autoFix": true
+      },
+      "id": "c3d9d691-a859-4820-a63b-2873add864f7",
+      "name": "Structured Output Parser Alterno",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1760,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {
+          "maxOutputTokens": 1500
+        }
+      },
+      "id": "d5844cbb-73a4-480d-a859-c8b204ce5b3b",
+      "name": "Google Gemini Chat Model (Parser)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1840,
+        800
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "JhlZVYrWf7stdtUE",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-prov-alterno",
+              "name": "proveedor_respuesta",
+              "type": "string",
+              "value": "Gemini (alterno - failover)"
+            },
+            {
+              "id": "set-tokens-alterno",
+              "name": "tokens_usados",
+              "type": "number",
+              "value": "={{ Math.ceil(((($('Webhook').item.json.body?.chatInput ?? $('Webhook').item.json.chatInput ?? '') + JSON.stringify($json.output ?? '')).length) / 4) }}"
+            },
+            {
+              "id": "set-tfin-alterno",
+              "name": "t_fin_agente",
+              "type": "number",
+              "value": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "e44b7cfe-196e-4199-ba20-6542dfee0d79",
+      "name": "Etiqueta Proveedor Alterno",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2112,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "enr-success",
+              "name": "success",
+              "type": "boolean",
+              "value": false
+            },
+            {
+              "id": "enr-intent",
+              "name": "intent",
+              "type": "string",
+              "value": "Error"
+            },
+            {
+              "id": "enr-message",
+              "name": "message",
+              "type": "string",
+              "value": "Ocurrió un error al procesar tu consulta. Por favor, inténtalo nuevamente más tarde."
+            },
+            {
+              "id": "enr-output",
+              "name": "output",
+              "type": "string",
+              "value": "Lo sentimos, ocurrió un error al procesar tu consulta. Por favor, inténtalo nuevamente más tarde."
+            },
+            {
+              "id": "enr-risk",
+              "name": "risk",
+              "type": "string",
+              "value": "SAFE"
+            },
+            {
+              "id": "enr-prov",
+              "name": "proveedor_respuesta",
+              "type": "string",
+              "value": "N/A (error no recuperable)"
+            },
+            {
+              "id": "enr-det",
+              "name": "error_detalle",
+              "type": "string",
+              "value": "={{ ($json.error_principal ? 'principal: ' + $json.error_principal + ' | alterno: ' : 'principal: ') + String($json.error ?? '') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6f539bf7-cb2a-46e4-94b4-e8541eddb6d6",
+      "name": "Error No Recuperable",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2784,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: $json.success ?? false,\n  intent: $json.intent ?? \"NoReconocido\",\n  message: $json.message ?? \"\",\n  output: $json.output ?? \"\",\n  risk: $json.risk ?? \"SAFE\",\n  evolucion: $json.evolucion ?? [],\n  presupuestos: $json.presupuestos ?? [],\n  proyectos: $json.proyectos ?? [],\n  contrataciones: $json.contrataciones ?? [],\n  totalRegistros: $json.totalRegistros ?? 0,\n  paginaActual: $json.paginaActual ?? 1,\n  tamanioPagina: $json.tamanioPagina ?? 10,\n  totalPaginas: $json.totalPaginas ?? 1,\n  proveedor_respuesta: $json.proveedor_respuesta ?? \"N/A\",\n  correlation_id: $('Iniciar métricas').first()?.json?.correlation_id ?? null\n} }}",
+        "options": {}
+      },
+      "id": "40fd5504-5f42-4a40-8e24-5422dc63ff7c",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3008,
+        656
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "3218b118-66d1-4bce-9d4c-65def3b2d2a8",
+      "name": "Merge Respuestas",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2336,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ { ...$json.output, proveedor_respuesta: $json.proveedor_respuesta } }}",
+        "options": {}
+      },
+      "id": "6da3529e-36d4-4d4a-818a-e038afb5706d",
+      "name": "Normalize Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2560,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.risk }}",
+                    "rightValue": "HIGH_RISK",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "high_risk"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "safe"
+        }
+      },
+      "id": "42ea8ef8-061b-4ddf-a0d4-97008e64c5eb",
+      "name": "Security Filter",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        2784,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Tu consulta no pudo ser procesada por políticas de seguridad",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "X-Correlation-Id",
+                "value": "={{ $('Iniciar métricas').first()?.json?.correlation_id ?? '' }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "114575c7-9f6b-45de-9232-51c97f6efb1b",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3008,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "log_consultas_bot"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "proveedor_respuesta": "={{ $json.proveedor_respuesta }}",
+            "tokens_usados": "={{ $json.tokens_usados }}",
+            "pregunta": "={{ $('Webhook').item.json.body?.chatInput ?? $('Webhook').item.json.chatInput ?? '' }}",
+            "respuesta": "={{ typeof $json.output === 'string' ? $json.output : ($json.output?.output ?? $json.output?.message ?? JSON.stringify($json.output ?? '')) }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "a6931774-85ca-4b26-a833-db2c72da50b1",
+      "name": "Log Consultas Bot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2560,
+        464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "CZumYYXbYQ6C0NM2",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "im-corr",
+              "name": "correlation_id",
+              "type": "string",
+              "value": "={{ 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => (c === 'x' ? (Math.random() * 16 | 0) : ((Math.random() * 4 | 0) + 8)).toString(16)) }}"
+            },
+            {
+              "id": "im-t",
+              "name": "t_inicio",
+              "type": "number",
+              "value": "={{ Date.now() }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7b627e4b-b0ab-4caa-9be0-c1eb9b94c857",
+      "name": "Iniciar métricas",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        304,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "mia-t",
+              "name": "t_inicio_alterno",
+              "type": "number",
+              "value": "={{ Date.now() }}"
+            },
+            {
+              "id": "mia-err",
+              "name": "error_principal",
+              "type": "string",
+              "value": "={{ String($json.error ?? '') }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "88562d90-b403-4dca-8002-316130201552",
+      "name": "Marca inicio alterno",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1520,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Arma UNA fila de metricas por consulta (CA-01..CA-05). No inventa datos.\nconst PRINCIPAL = { proveedor: 'OpenAI', modelo: 'gpt-5.6-luna' };\nconst ALTERNO   = { proveedor: 'Gemini', modelo: 'models/gemini-3.6-flash' };\nconst j = $json;\nconst wh = $('Webhook').first().json;\nconst ini = $('Iniciar métricas').first().json;\nconst ahora = Date.now();\nconst esError = j.success === false && String(j.proveedor_respuesta || '').startsWith('N/A');\nlet usoFailover = false;\ntry { usoFailover = $('Marca inicio alterno').first() != null; } catch (e) {}\nlet estado, proveedor, modelo, latProv = null, errMsg = null;\nif (esError) {\n  estado = 'error'; proveedor = 'ninguno'; modelo = null;\n  errMsg = j.error_detalle ? String(j.error_detalle).slice(0, 500) : null;\n} else {\n  const esAlterno = String(j.proveedor_respuesta || '').startsWith('Gemini');\n  if (esAlterno) usoFailover = true;\n  const dest = esAlterno ? ALTERNO : PRINCIPAL;\n  proveedor = dest.proveedor; modelo = dest.modelo;\n  let ini2 = Number(ini.t_inicio);\n  if (esAlterno) { try { ini2 = Number($('Marca inicio alterno').first().json.t_inicio_alterno); } catch (e) { ini2 = NaN; } }\n  if (j.t_fin_agente && ini2) latProv = Number(j.t_fin_agente) - ini2;\n  const riesgo = j.output && j.output.risk;\n  estado = riesgo === 'HIGH_RISK' ? 'bloqueada' : (esAlterno ? 'ok_failover' : 'ok');\n}\nreturn [{ json: {\n  correlation_id: ini.correlation_id,\n  session_id: (wh.body && wh.body.sessionId) || wh.sessionId || null,\n  execution_id: String($execution.id),\n  latencia_total_ms: ahora - Number(ini.t_inicio),\n  latencia_proveedor_ms: latProv,\n  tokens_entrada: null, tokens_salida: null, tokens_total: null,\n  tokens_origen: 'no_disponible',\n  proveedor, modelo, uso_failover: usoFailover, estado, error_mensaje: errMsg,\n  costo_usd: null, costo_origen: 'no_calculado'\n} }];"
+      },
+      "id": "9e1fb411-d2b2-4f84-b7ba-14c8383db1a7",
+      "name": "Armar métricas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "name",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "metricas_consulta"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [],
+          "value": {
+            "correlation_id": "={{ $json.correlation_id }}",
+            "costo_origen": "={{ $json.costo_origen }}",
+            "costo_usd": "={{ $json.costo_usd }}",
+            "error_mensaje": "={{ $json.error_mensaje }}",
+            "estado": "={{ $json.estado }}",
+            "execution_id": "={{ $json.execution_id }}",
+            "latencia_proveedor_ms": "={{ $json.latencia_proveedor_ms }}",
+            "latencia_total_ms": "={{ $json.latencia_total_ms }}",
+            "modelo": "={{ $json.modelo }}",
+            "proveedor": "={{ $json.proveedor }}",
+            "session_id": "={{ $json.session_id }}",
+            "tokens_entrada": "={{ $json.tokens_entrada }}",
+            "tokens_origen": "={{ $json.tokens_origen }}",
+            "tokens_salida": "={{ $json.tokens_salida }}",
+            "tokens_total": "={{ $json.tokens_total }}",
+            "uso_failover": "={{ $json.uso_failover }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "da79e79c-1f27-48ef-803c-d7d0cbd2a689",
+      "name": "Registrar métricas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        2784,
+        912
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "postgres": {
+          "id": "CZumYYXbYQ6C0NM2",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Etiqueta Proveedor Principal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Es error recuperable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "knowledge_base": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "knowledge_base",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres PGVector Store": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "knowledge_base",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Postgres PGVector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consulta_puntual": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consulta_evolucion": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model (Parser)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es error recuperable": {
+      "main": [
+        [
+          {
+            "node": "Marca inicio alterno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error No Recuperable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Etiqueta Proveedor Principal": {
+      "main": [
+        [
+          {
+            "node": "Merge Respuestas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Etiqueta Proveedor Alterno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error No Recuperable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser Alterno": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model (Parser)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser Alterno",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Etiqueta Proveedor Alterno": {
+      "main": [
+        [
+          {
+            "node": "Merge Respuestas",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Error No Recuperable": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Armar métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Respuestas": {
+      "main": [
+        [
+          {
+            "node": "Normalize Output",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Consultas Bot",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Armar métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Output": {
+      "main": [
+        [
+          {
+            "node": "Security Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Filter": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Iniciar métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iniciar métricas": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marca inicio alterno": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar métricas": {
+      "main": [
+        [
+          {
+            "node": "Registrar métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  },
+  "tags": []
+}
