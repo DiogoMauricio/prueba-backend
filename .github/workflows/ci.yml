@@ -13,7 +13,7 @@ jobs:
     name: Validar JSON de flujos n8n
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Cada flujo es JSON válido de n8n
         run: |
@@ -37,10 +37,10 @@ jobs:
     name: Prueba del flujo del bot
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - name: Consulta real al n8n en la nube
         env:
           BOT_WEBHOOK_URL: ${{ secrets.BOT_WEBHOOK_URL }}
